@@ -1,13 +1,12 @@
 #!/bin/bash
 
 ################################################################################
-# Script de Instalação Automatizada
+# Script de Instalação Automatizada v2
 # EFD-Contribuições + XFCE + TightVNC
 # 
-# Uso: bash setup_efd_vnc_completo.sh
+# Uso: bash setup_efd_vnc_v2.sh
 # 
-# Este script instala tudo necessário para acessar o EFD-Contribuições
-# remotamente via VNC em uma máquina Ubuntu 22.04
+# Versão melhorada que usa 'expect' para automatizar o instalador
 ################################################################################
 
 set -e
@@ -39,12 +38,12 @@ print_info() {
 }
 
 # Início do script
-print_header "Instalação: EFD-Contribuições + XFCE + VNC"
+print_header "Instalação v2: EFD-Contribuições + XFCE + VNC"
 
 # ============================================================================
 # PASSO 1: Atualizar sistema
 # ============================================================================
-print_header "PASSO 1/5: Atualizando sistema"
+print_header "PASSO 1/6: Atualizando sistema"
 
 print_info "Atualizando lista de pacotes..."
 sudo apt-get update -qq
@@ -55,9 +54,19 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get upgrade -y -qq
 print_success "Sistema atualizado!"
 
 # ============================================================================
-# PASSO 2: Instalar XFCE (ambiente gráfico leve)
+# PASSO 2: Instalar dependências
 # ============================================================================
-print_header "PASSO 2/5: Instalando XFCE"
+print_header "PASSO 2/6: Instalando dependências"
+
+print_info "Instalando expect (para automação)..."
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq expect
+
+print_success "Dependências instaladas!"
+
+# ============================================================================
+# PASSO 3: Instalar XFCE (ambiente gráfico leve)
+# ============================================================================
+print_header "PASSO 3/6: Instalando XFCE"
 
 print_info "Instalando XFCE4 e componentes..."
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
@@ -70,9 +79,9 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
 print_success "XFCE instalado!"
 
 # ============================================================================
-# PASSO 3: Instalar TightVNC Server
+# PASSO 4: Instalar TightVNC Server
 # ============================================================================
-print_header "PASSO 3/5: Instalando TightVNC Server"
+print_header "PASSO 4/6: Instalando TightVNC Server"
 
 print_info "Instalando TightVNC..."
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq tightvncserver
@@ -80,9 +89,9 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq tightvncserver
 print_success "TightVNC instalado!"
 
 # ============================================================================
-# PASSO 4: Configurar VNC
+# PASSO 5: Configurar VNC
 # ============================================================================
-print_header "PASSO 4/5: Configurando VNC"
+print_header "PASSO 5/6: Configurando VNC"
 
 print_info "Criando diretório ~/.vnc..."
 mkdir -p ~/.vnc
@@ -103,9 +112,9 @@ chmod 600 ~/.vnc/passwd
 print_success "VNC configurado!"
 
 # ============================================================================
-# PASSO 5: Baixar e Instalar EFD-Contribuições
+# PASSO 6: Baixar e Instalar EFD-Contribuições
 # ============================================================================
-print_header "PASSO 5/5: Instalando EFD-Contribuições"
+print_header "PASSO 6/6: Instalando EFD-Contribuições"
 
 print_info "Criando diretório para instalação..."
 mkdir -p ~/efd-contribuicoes
@@ -119,18 +128,49 @@ wget -q --show-progress \
 print_info "Tornando instalador executável..."
 chmod +x EFD-Contribuicoes_linux_x86_64-6.1.2.sh
 
-print_info "Executando instalador (isso pode levar alguns minutos)..."
-# Executar o instalador com respostas automáticas
-./EFD-Contribuicoes_linux_x86_64-6.1.2.sh << 'INSTALLER_EOF'
+print_info "Executando instalador com automação (isso pode levar alguns minutos)..."
 
-o
-o
-o
-y
-o
-n
-o
-INSTALLER_EOF
+# Criar script expect para automatizar o instalador
+cat > /tmp/install_efd.expect << 'EXPECT_EOF'
+#!/usr/bin/expect -f
+
+set timeout 600
+
+# Iniciar o instalador
+spawn /home/ubuntu/efd-contribuicoes/EFD-Contribuicoes_linux_x86_64-6.1.2.sh
+
+# Responder à primeira pergunta (OK)
+expect "OK*Cancelar*c*"
+send "o\r"
+
+# Responder à segunda pergunta (Avançar)
+expect "Avançar*Cancelar*"
+send "o\r"
+
+# Responder à pergunta de pasta (aceitar padrão)
+expect "EFD-Contribuicoes*"
+send "\r"
+
+# Responder à pergunta de ícone no desktop (Sim)
+expect "Ambiente de Trabalho*"
+send "y\r"
+
+# Responder à pergunta de executar agora (Não)
+expect "agora*"
+send "n\r"
+
+# Aguardar conclusão
+expect "Concluído"
+send "\r"
+
+# Finalizar
+expect eof
+EXPECT_EOF
+
+chmod +x /tmp/install_efd.expect
+
+# Executar o script expect
+/tmp/install_efd.expect
 
 print_success "EFD-Contribuições instalado!"
 
@@ -160,7 +200,7 @@ echo "   ${BLUE}localhost:5901${NC}"
 echo "   Senha: ${BLUE}123456${NC}"
 echo ""
 echo "4. Executar EFD-Contribuições:"
-echo "   ${BLUE}/home/ubuntu/Programas/SPED-EFD-Contribuicoes/bin/efd-contribuicoes${NC}"
+echo "   ${BLUE}/home/ubuntu/ProgramasSPED/EFD-Contribuicoes/bin/efd-contribuicoes${NC}"
 echo ""
 
 echo -e "${YELLOW}Comandos Úteis:${NC}"
